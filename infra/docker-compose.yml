@@ -1,0 +1,15 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: workops-sql
+    ports:
+      - "1433:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "YourStrong!Passw0rd"
+    volumes:
+      - workops-sql-data:/var/opt/mssql
+    restart: unless-stopped
+
+volumes:
+  workops-sql-data:
