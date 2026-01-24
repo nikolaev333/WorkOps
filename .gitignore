@@ -151,7 +151,7 @@ _ReSharper*/
 
 # Unused UI directories (from template)
 Pages/
-wwwroot/
+# wwwroot/ — keep empty wwwroot so Web SDK does not throw; no static files served
 
 # OS
 .DS_Store

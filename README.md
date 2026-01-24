@@ -43,8 +43,31 @@ API runs on `https://localhost:7239` (or check console output).
 ## Endpoints
 
 - `GET /health` - Health check
-- `GET /api/projects` - List projects
 - `GET /swagger` - Swagger UI (dev only)
+
+### Projects API
+
+- `GET /api/projects` - List (sorted by CreatedAtUtc desc)
+- `GET /api/projects/{id}` - Get by id
+- `POST /api/projects` - Create (body: `{"name":"..."}`)
+- `PUT /api/projects/{id}` - Update (body: `{"name":"..."}`)
+- `DELETE /api/projects/{id}` - Delete
+
+Example (base URL `https://localhost:7239` or from `dotnet run`):
+
+```bash
+# list
+curl -s https://localhost:7239/api/projects -k
+
+# create (use the returned id for update/delete)
+curl -s -X POST https://localhost:7239/api/projects -k -H "Content-Type: application/json" -d "{\"name\":\"My Project\"}"
+
+# update (replace {id} with real Guid)
+curl -s -X PUT https://localhost:7239/api/projects/{id} -k -H "Content-Type: application/json" -d "{\"name\":\"Updated Name\"}"
+
+# delete
+curl -s -X DELETE https://localhost:7239/api/projects/{id} -k
+```
 
 ## Tech Stack
 

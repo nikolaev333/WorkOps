@@ -1,5 +1,8 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using WorkOps.Api.Data;
+using WorkOps.Api.Models;
 
 namespace WorkOps.Api;
 
@@ -12,6 +15,7 @@ public class Program
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
+        builder.Services.AddProblemDetails();
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found. Set environment variable 'ConnectionStrings__DefaultConnection'.");
@@ -21,10 +25,18 @@ public class Program
 
         var app = builder.Build();
 
+        app.UseExceptionHandler(err => err.Run(async ctx =>
+        {
+            ctx.Response.StatusCode = 500;
+            ctx.Response.ContentType = "application/problem+json";
+            await ctx.Response.WriteAsJsonAsync(new ProblemDetails { Title = "An error occurred", Status = 500 });
+        }));
+
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();
             app.UseSwaggerUI();
+            SeedIfEmpty(app);
         }
         else
         {
@@ -40,14 +52,26 @@ public class Program
             .WithName("Health")
             .WithTags("Health");
 
-        app.MapGet("/api/projects", async (AppDbContext db) =>
-        {
-            var projects = await db.Projects.ToListAsync();
-            return Results.Ok(projects);
-        })
-            .WithName("GetProjects")
-            .WithTags("Projects");
-
         app.Run();
+    }
+
+    private static void SeedIfEmpty(WebApplication app)
+    {
+        try
+        {
+            using var scope = app.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            if (db.Projects.Any()) return;
+            var now = DateTime.UtcNow;
+            db.Projects.AddRange(
+                new Project { Id = Guid.NewGuid(), Name = "Sample Project A", CreatedAtUtc = now },
+                new Project { Id = Guid.NewGuid(), Name = "Sample Project B", CreatedAtUtc = now });
+            db.SaveChanges();
+        }
+        catch (Exception ex)
+        {
+            var logger = app.Services.GetRequiredService<ILogger<Program>>();
+            logger.LogWarning(ex, "Dev seed skipped (DB may be unavailable).");
+        }
     }
 }
