@@ -9,6 +9,14 @@ namespace WorkOps.Api.Tests;
 
 public sealed class CustomWebApplicationFactory : WebApplicationFactory<WorkOps.Api.Program>
 {
+    public CustomWebApplicationFactory()
+    {
+        // Ensure connection string exists before Program.Main runs (ConfigureAppConfiguration
+        // on IWebHostBuilder is not applied in time with minimal hosting / WebApplication.CreateBuilder).
+        Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection",
+            "Server=.;Database=Noop;TrustServerCertificate=True;");
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.ConfigureAppConfiguration((_, config) =>
