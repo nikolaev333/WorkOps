@@ -12,10 +12,9 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<WorkOps.
 {
     public CustomWebApplicationFactory()
     {
-        // Ensure connection string exists before Program.Main runs (ConfigureAppConfiguration
-        // on IWebHostBuilder is not applied in time with minimal hosting / WebApplication.CreateBuilder).
         Environment.SetEnvironmentVariable("ConnectionStrings__DefaultConnection",
             "Server=.;Database=Noop;TrustServerCertificate=True;");
+        Environment.SetEnvironmentVariable("Jwt__Key", "test-signing-key-at-least-32-bytes-long-for-hs256");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
