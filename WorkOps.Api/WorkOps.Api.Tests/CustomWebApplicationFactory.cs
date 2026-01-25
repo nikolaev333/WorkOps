@@ -27,8 +27,14 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<WorkOps.
             });
         });
 
-        builder.ConfigureServices(services =>
+        // ConfigureTestServices runs after the app's ConfigureServices, so we can replace
+        // the SQL Server DbContext from Program with InMemory (no SQL in CI).
+        builder.ConfigureTestServices(services =>
         {
+            var opts = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
+            if (opts != null) services.Remove(opts);
+            var ctx = services.SingleOrDefault(d => d.ServiceType == typeof(AppDbContext));
+            if (ctx != null) services.Remove(ctx);
             services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase("TestDb"));
         });
     }
