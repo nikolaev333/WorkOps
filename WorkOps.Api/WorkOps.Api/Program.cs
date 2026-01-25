@@ -1,5 +1,8 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using WorkOps.Api.Data;
 using WorkOps.Api.Models;
@@ -18,10 +21,15 @@ public class Program
         builder.Services.AddProblemDetails();
 
         var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-            ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found. Set environment variable 'ConnectionStrings__DefaultConnection'.");
-        
+            ?? throw new InvalidOperationException(
+                "Connection string 'DefaultConnection' not found. Use: dotnet user-secrets set \"ConnectionStrings:DefaultConnection\" \"<conn>\" or set env ConnectionStrings__DefaultConnection.");
+
         builder.Services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(connectionString));
+            options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
+
+        builder.Services.AddHealthChecks()
+            .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
+            .AddDbContextCheck<AppDbContext>("database", tags: ["ready"]);
 
         var app = builder.Build();
 
@@ -48,11 +56,23 @@ public class Program
         app.UseAuthorization();
         app.MapControllers();
 
-        app.MapGet("/health", () => Results.Ok(new { status = "ok", service = "WorkOps.Api" }))
-            .WithName("Health")
-            .WithTags("Health");
+        var opts = new HealthCheckOptions { ResponseWriter = WriteHealthJson };
+        app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = c => c.Tags.Contains("live"), ResponseWriter = opts.ResponseWriter });
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = c => c.Tags.Contains("ready"), ResponseWriter = opts.ResponseWriter });
 
         app.Run();
+    }
+
+    private static Task WriteHealthJson(HttpContext ctx, HealthReport report)
+    {
+        ctx.Response.ContentType = "application/json";
+        var json = JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            totalDuration = report.TotalDuration.TotalMilliseconds,
+            checks = report.Entries.ToDictionary(e => e.Key, e => new { status = e.Value.Status.ToString(), e.Value.Description })
+        });
+        return ctx.Response.WriteAsync(json);
     }
 
     private static void SeedIfEmpty(WebApplication app)
