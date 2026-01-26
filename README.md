@@ -86,6 +86,26 @@ curl -s https://localhost:7239/api/auth/me -k -H "Authorization: Bearer TOKEN"
 
 In Swagger: **Authorize** → enter `Bearer <token>` or the token → **Authorize**.
 
+### Organizations (multi-tenant workspaces)
+
+An **organization** is a workspace. Only members can access org-scoped endpoints. If you are not a member, the API returns **404** (org existence is not disclosed). All org endpoints require `Authorization: Bearer <token>`.
+
+**Roles:** Admin (full control, add/remove members, delete) · Manager (list members, manage content) · Member (read, limited actions). Insufficient role → **403**.
+
+| Method | Path | Policy | Description |
+|--------|------|--------|-------------|
+| POST | /api/orgs | – | Create org; you become **Admin** |
+| GET | /api/orgs | – | List orgs you belong to |
+| GET | /api/orgs/{orgId}/members | OrgManager | List members |
+| POST | /api/orgs/{orgId}/members | OrgAdmin | Add member `{ "email", "role" }` |
+| DELETE | /api/orgs/{orgId}/members/{userId} | OrgAdmin | Remove member (cannot remove last Admin) |
+
+**Create org:** `POST /api/orgs` with `{ "name": "My Workspace" }` (required, 1–200 chars). Returns `{ id, name, createdAtUtc }`.
+
+**Add member:** `POST /api/orgs/{orgId}/members` with `{ "email": "user@example.com", "role": 2 }` (role: 1=Admin, 2=Manager, 3=Member). Fails with 400 if user not found, 409 if already a member.
+
+**Convention:** Org-scoped routes use `/api/orgs/{orgId}/...`. Non-members get **404** for org-scoped resources.
+
 ### Projects
 
 | Method | Path | Body |
