@@ -9,9 +9,12 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Authorization;
+using WorkOps.Api.Authorization;
 using WorkOps.Api.Data;
 using WorkOps.Api.Models;
 using WorkOps.Api.Options;
+using WorkOps.Api.Services;
 
 namespace WorkOps.Api;
 
@@ -20,6 +23,18 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+        builder.Services.AddScoped<IOrgAccessService, OrgAccessService>();
+
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy("OrgMember", p => p.Requirements.Add(new OrgRoleRequirement(OrgRole.Member)));
+            options.AddPolicy("OrgManager", p => p.Requirements.Add(new OrgRoleRequirement(OrgRole.Manager)));
+            options.AddPolicy("OrgAdmin", p => p.Requirements.Add(new OrgRoleRequirement(OrgRole.Admin)));
+        });
+        builder.Services.AddScoped<IAuthorizationHandler, OrgRoleAuthorizationHandler>();
 
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
