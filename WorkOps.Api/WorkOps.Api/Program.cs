@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
+using Serilog;
 using WorkOps.Api.Authorization;
 using WorkOps.Api.Data;
 using WorkOps.Api.Models;
@@ -24,6 +26,17 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
+        // Configure Serilog
+        Log.Logger = new LoggerConfiguration()
+            .ReadFrom.Configuration(builder.Configuration)
+            .Enrich.FromLogContext()
+            .Enrich.WithMachineName()
+            .Enrich.WithThreadId()
+            .Enrich.WithEnvironmentName()
+            .CreateLogger();
+
+        builder.Host.UseSerilog();
+
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
         builder.Services.AddScoped<IOrgAccessService, OrgAccessService>();
@@ -35,6 +48,43 @@ public class Program
             options.AddPolicy("OrgAdmin", p => p.Requirements.Add(new OrgRoleRequirement(OrgRole.Admin)));
         });
         builder.Services.AddScoped<IAuthorizationHandler, OrgRoleAuthorizationHandler>();
+
+        // Rate limiting
+        builder.Services.AddRateLimiter(options =>
+        {
+            // Global policy: 60 requests per minute per IP
+            options.GlobalLimiter = System.Threading.RateLimiting.PartitionedRateLimiter.Create<HttpContext, string>(context =>
+                System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 60,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    }));
+
+            // Stricter policy for auth endpoints: 10 requests per minute per IP
+            options.AddFixedWindowLimiter(policyName: "AuthPolicy", fixedWindowOptions =>
+            {
+                fixedWindowOptions.PermitLimit = 10;
+                fixedWindowOptions.Window = TimeSpan.FromMinutes(1);
+                fixedWindowOptions.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+                fixedWindowOptions.QueueLimit = 0;
+            });
+
+            options.OnRejected = async (context, ct) =>
+            {
+                context.HttpContext.Response.StatusCode = 429;
+                context.HttpContext.Response.ContentType = "application/problem+json";
+                await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
+                {
+                    Title = "Too Many Requests",
+                    Status = 429,
+                    Detail = "Rate limit exceeded. Please try again later."
+                }, ct);
+            };
+        });
 
         builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
@@ -104,10 +154,54 @@ public class Program
 
         app.UseExceptionHandler(err => err.Run(async ctx =>
         {
+            var logger = ctx.RequestServices.GetRequiredService<ILogger<Program>>();
+            var exception = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+            logger.LogError(exception, "Unhandled exception occurred");
+
             ctx.Response.StatusCode = 500;
             ctx.Response.ContentType = "application/problem+json";
-            await ctx.Response.WriteAsJsonAsync(new ProblemDetails { Title = "An error occurred", Status = 500 });
+            await ctx.Response.WriteAsJsonAsync(new ProblemDetails
+            {
+                Title = "An error occurred",
+                Status = 500,
+                Detail = app.Environment.IsDevelopment() && exception != null
+                    ? exception.Message
+                    : "An internal server error occurred. Please try again later."
+            });
         }));
+
+        // Security headers
+        app.UseMiddleware<WorkOps.Api.Middleware.SecurityHeadersMiddleware>();
+
+        // Correlation ID middleware (must be early in pipeline)
+        app.UseMiddleware<WorkOps.Api.Middleware.CorrelationIdMiddleware>();
+
+        // Serilog request logging (exclude health endpoints)
+        app.UseSerilogRequestLogging(options =>
+        {
+            options.MessageTemplate = "HTTP {RequestMethod} {RequestPath} responded {StatusCode} in {Elapsed:0.0000} ms";
+            options.GetLevel = (httpContext, elapsed, ex) =>
+            {
+                // Exclude health endpoints from request logging
+                if (httpContext.Request.Path.StartsWithSegments("/health"))
+                    return Serilog.Events.LogEventLevel.Verbose; // Effectively disabled
+
+                return ex != null
+                    ? Serilog.Events.LogEventLevel.Error
+                    : httpContext.Response.StatusCode >= 500
+                        ? Serilog.Events.LogEventLevel.Error
+                        : httpContext.Response.StatusCode >= 400
+                            ? Serilog.Events.LogEventLevel.Warning
+                            : Serilog.Events.LogEventLevel.Information;
+            };
+            options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+            {
+                diagnosticContext.Set("RequestHost", httpContext.Request.Host.Value);
+                diagnosticContext.Set("RequestScheme", httpContext.Request.Scheme);
+                if (httpContext.Items.TryGetValue("CorrelationId", out var correlationId))
+                    diagnosticContext.Set("CorrelationId", correlationId);
+            };
+        });
 
         if (app.Environment.IsDevelopment())
         {
@@ -121,6 +215,13 @@ public class Program
         }
 
         app.UseHttpsRedirection();
+
+        // Skip rate limiting in tests to avoid interference
+        if (Environment.GetEnvironmentVariable("DISABLE_RATE_LIMITING") != "true")
+        {
+            app.UseRateLimiter();
+        }
+
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();

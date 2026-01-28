@@ -36,6 +36,10 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<WorkOps.
             var ctx = services.SingleOrDefault(d => d.ServiceType == typeof(AppDbContext));
             if (ctx != null) services.Remove(ctx);
             services.AddDbContext<AppDbContext>(o => o.UseInMemoryDatabase("TestDb"));
+
+            // Disable rate limiting in tests by removing the middleware registration
+            // Rate limiting is tested separately and can interfere with other tests
+            Environment.SetEnvironmentVariable("DISABLE_RATE_LIMITING", "true");
         });
     }
 }

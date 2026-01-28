@@ -6,7 +6,17 @@ Multi-tenant project management API with RBAC (Admin/Manager/Member), JWT auth, 
 
 ## Setup
 
-1. Start SQL Server: `docker compose -f infra/docker-compose.yml up -d`
+### Option 1: Docker Compose (recommended)
+
+```bash
+docker compose -f infra/docker-compose.yml up -d
+```
+
+Starts both SQL Server and API. API: `http://localhost:8080` | Swagger: `http://localhost:8080/swagger`
+
+### Option 2: Local Development
+
+1. Start SQL Server: `docker compose -f infra/docker-compose.yml up -d sqlserver`
 2. Configure secrets:
    ```bash
    cd WorkOps.Api/WorkOps.Api
@@ -53,12 +63,39 @@ API: `https://localhost:7239` | Swagger: `/swagger`
 
 **Filters:** `?status=1&assigneeId={userId}`
 
+## Observability
+
+### Logging
+- **Structured logging** with Serilog (JSON format)
+- **Request logging** includes: method, path, status code, elapsed time, correlation ID
+- **Correlation ID**: Include `X-Correlation-Id` header in requests (auto-generated if missing)
+- Health endpoints excluded from request logging to reduce noise
+
+### Rate Limiting
+- **Global**: 60 requests/minute per IP
+- **Auth endpoints**: 10 requests/minute per IP
+- Returns `429 Too Many Requests` with ProblemDetails when exceeded
+
+### Health Checks
+- `GET /health/live` - Liveness probe (self check)
+- `GET /health/ready` - Readiness probe (includes database check)
+
 ## Tests
 
 ```bash
 dotnet test WorkOps.Api/WorkOps.Api.sln -c Release
 ```
 
+Uses in-memory DB (no SQL Server/Docker required).
+
+## CI
+
+GitHub Actions runs:
+- Restore dependencies
+- Build (Release)
+- Format check (`dotnet format --verify-no-changes`)
+- Tests with code coverage (artifact uploaded)
+
 ## Tech
 
-ASP.NET Core 8 · EF Core 8 · SQL Server · Identity + JWT · Swagger
+ASP.NET Core 8 · EF Core 8 · SQL Server · Identity + JWT · Swagger · Serilog · Rate Limiting
