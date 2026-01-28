@@ -1,0 +1,25 @@
+PS M:\WorkOps.Api\WorkOps.Api> # Направи commit
+PS M:\WorkOps.Api\WorkOps.Api> git commit -m "feat: implement Milestone 5 - Quality & Ops
+>>
+>> - Add Serilog structured logging with request logging
+>> - Add correlation ID middleware
+>> - Add rate limiting (global + auth endpoints)
+>> - Add security headers middleware
+>> - Improve exception handling with better ProblemDetails
+>> - Add Docker support (Dockerfile + docker-compose)
+>> - Enhance CI with format check and coverage
+>> - Fix rate limiting API compatibility for .NET 8
+>> - Disable rate limiting in tests to avoid interference"
+[chore/quality-ops-hardening 2beb48d] feat: implement Milestone 5 - Quality & Ops
+ 10 files changed, 249 insertions(+), 17 deletions(-)
+ create mode 100644 WorkOps.Api/WorkOps.Api.Tests/CorrelationIdTests.cs
+ create mode 100644 WorkOps.Api/WorkOps.Api.Tests/RateLimitingTests.cs
+ create mode 100644 WorkOps.Api/WorkOps.Api/Middleware/CorrelationIdMiddleware.cs
+ create mode 100644 WorkOps.Api/WorkOps.Api/Middleware/SecurityHeadersMiddleware.cs
+PS M:\WorkOps.Api\WorkOps.Api>
+PS M:\WorkOps.Api\WorkOps.Api> # Push към remote
+PS M:\WorkOps.Api\WorkOps.Api> git push origin feat/core-modules-clients-projects-tasks
+Everything up-to-date
+PS M:\WorkOps.Api\WorkOps.Api> git push origin feat/core-modules-clients-projects-tasks
+Everything up-to-date
+PS M:\WorkOps.Api\WorkOps.Api>

@@ -11,5 +11,21 @@ services:
       - workops-sql-data:/var/opt/mssql
     restart: unless-stopped
 
+  api:
+    build:
+      context: ../WorkOps.Api/WorkOps.Api
+      dockerfile: Dockerfile
+    container_name: workops-api
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=WorkOpsDb;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True;"
+      Jwt__Key: "your-secret-at-least-32-characters-long-change-in-production"
+    depends_on:
+      - sqlserver
+    restart: unless-stopped
+
 volumes:
   workops-sql-data:

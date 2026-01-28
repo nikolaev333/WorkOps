@@ -21,5 +21,16 @@ jobs:
       - name: Build
         run: dotnet build WorkOps.Api/WorkOps.Api.sln --configuration Release --no-restore
 
+      - name: Format check
+        run: dotnet format WorkOps.Api/WorkOps.Api.sln --verify-no-changes --verbosity minimal
+
       - name: Test
-        run: dotnet test WorkOps.Api/WorkOps.Api.sln --configuration Release --no-build --verbosity normal
+        run: dotnet test WorkOps.Api/WorkOps.Api.sln --configuration Release --no-build --verbosity normal --collect:"XPlat Code Coverage" --results-directory:"${{ github.workspace }}/coverage"
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage
+          retention-days: 7
