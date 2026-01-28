@@ -74,7 +74,9 @@ public class ProjectsController : ControllerBase
                 CreatedAtUtc = p.CreatedAtUtc,
                 UpdatedAtUtc = p.UpdatedAtUtc,
                 CreatedByUserId = p.CreatedByUserId,
-                RowVersion = Convert.ToBase64String(p.RowVersion)
+                RowVersion = p.RowVersion != null && p.RowVersion.Length > 0
+                    ? Convert.ToBase64String(p.RowVersion)
+                    : string.Empty
             })
             .ToListAsync(ct);
 
@@ -107,7 +109,9 @@ public class ProjectsController : ControllerBase
                 CreatedAtUtc = p.CreatedAtUtc,
                 UpdatedAtUtc = p.UpdatedAtUtc,
                 CreatedByUserId = p.CreatedByUserId,
-                RowVersion = Convert.ToBase64String(p.RowVersion)
+                RowVersion = p.RowVersion != null && p.RowVersion.Length > 0
+                    ? Convert.ToBase64String(p.RowVersion)
+                    : string.Empty
             })
             .FirstOrDefaultAsync(ct);
 
@@ -165,7 +169,9 @@ public class ProjectsController : ControllerBase
         await _db.SaveChangesAsync(ct);
 
         await _db.Entry(project).ReloadAsync(ct);
-        var rowVersion = Convert.ToBase64String(project.RowVersion);
+        var rowVersion = project.RowVersion != null && project.RowVersion.Length > 0
+            ? Convert.ToBase64String(project.RowVersion)
+            : string.Empty;
 
         return Created($"/api/orgs/{orgId}/projects/{project.Id}", new ProjectResponse
         {
