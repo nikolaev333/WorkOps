@@ -14,7 +14,7 @@ public class UpdateTaskRequest
     public string? Description { get; set; }
 
     [Required]
-    public TaskStatus Status { get; set; }
+    public Models.TaskStatus Status { get; set; }
 
     [Required]
     public TaskPriority Priority { get; set; }

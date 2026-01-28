@@ -35,7 +35,7 @@ public class TasksController : ControllerBase
         Guid projectId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
-        [FromQuery] TaskStatus? status = null,
+        [FromQuery] Models.TaskStatus? status = null,
         [FromQuery] string? assigneeId = null,
         CancellationToken ct = default)
     {
@@ -175,7 +175,7 @@ public class TasksController : ControllerBase
             ProjectId = projectId,
             Title = title,
             Description = string.IsNullOrWhiteSpace(req.Description) ? null : req.Description.Trim(),
-            Status = TaskStatus.Todo,
+            Status = Models.TaskStatus.Todo,
             Priority = req.Priority,
             AssigneeUserId = string.IsNullOrWhiteSpace(req.AssigneeUserId) ? null : req.AssigneeUserId,
             DueDateUtc = req.DueDateUtc,
