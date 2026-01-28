@@ -215,13 +215,13 @@ public class Program
         }
 
         app.UseHttpsRedirection();
-        
+
         // Skip rate limiting in tests to avoid interference
         if (Environment.GetEnvironmentVariable("DISABLE_RATE_LIMITING") != "true")
         {
             app.UseRateLimiter();
         }
-        
+
         app.UseRouting();
         app.UseAuthentication();
         app.UseAuthorization();
