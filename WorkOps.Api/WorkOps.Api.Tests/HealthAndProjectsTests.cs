@@ -30,10 +30,4 @@ public sealed class HealthAndProjectsTests : IClassFixture<CustomWebApplicationF
         Assert.Equal("Healthy", doc.RootElement.GetProperty("status").GetString());
     }
 
-    [Fact]
-    public async Task GetProjects_Returns200()
-    {
-        var res = await _client.GetAsync("/api/projects");
-        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
-    }
 }

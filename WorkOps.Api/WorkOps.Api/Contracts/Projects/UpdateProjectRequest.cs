@@ -1,17 +1,20 @@
 using System.ComponentModel.DataAnnotations;
+using WorkOps.Api.Models;
 
 namespace WorkOps.Api.Contracts.Projects;
 
-public class UpdateProjectRequest : IValidatableObject
+public class UpdateProjectRequest
 {
+    [Required]
+    [MinLength(1)]
+    [MaxLength(200)]
     public string Name { get; set; } = string.Empty;
 
-    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-    {
-        var name = (Name ?? "").Trim();
-        if (name.Length == 0)
-            yield return new ValidationResult("Name is required.");
-        else if (name.Length > 200)
-            yield return new ValidationResult("Name must be at most 200 characters.");
-    }
+    [Required]
+    public ProjectStatus Status { get; set; }
+
+    public Guid? ClientId { get; set; }
+
+    [Required]
+    public string RowVersion { get; set; } = string.Empty;
 }
