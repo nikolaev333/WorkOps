@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -13,6 +14,7 @@ namespace WorkOps.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[EnableRateLimiting("AuthPolicy")]
 public class AuthController : ControllerBase
 {
     private readonly UserManager<IdentityUser> _userManager;
